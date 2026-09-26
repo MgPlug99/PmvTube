@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movies</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Noto+Sans+Myanmar:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#15121f;--panel:#1f1a2e;--line:#332c49;--text:#f1eefb;--mute:#9d96b8;--acc:#ff5d73}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 'Sora','Noto Sans Myanmar',sans-serif}
+header{position:sticky;top:0;z-index:5;background:rgba(21,18,31,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.logo{font-weight:700;font-size:20px;letter-spacing:-.02em;margin-right:auto}
+.logo i{color:var(--acc);font-style:normal}
+#q{width:260px;max-width:100%;padding:9px 14px;background:var(--panel);border:1px solid var(--line);border-radius:99px;color:var(--text);font:inherit}
+#q:focus{outline:2px solid var(--acc)}
+.chips{max-width:1200px;margin:0 auto;padding:0 16px 12px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.chip{flex:none;padding:6px 14px;border-radius:99px;border:1px solid var(--line);background:transparent;color:var(--mute);cursor:pointer;font:inherit;font-size:13px}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+main{max-width:1200px;margin:0 auto;padding:20px 16px 60px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:18px}
+.card{cursor:pointer;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit}
+.poster{aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:var(--panel);position:relative}
+.poster img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.card:hover .poster img,.card:focus-visible .poster img{transform:scale(1.05)}
+.card:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:12px}
+.poster::after{content:"▶";position:absolute;inset:0;display:grid;place-items:center;font-size:34px;color:#fff;background:rgba(0,0,0,.45);opacity:0;transition:.2s}
+.card:hover .poster::after{opacity:1}
+.card b{display:block;margin-top:8px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card span{color:var(--mute);font-size:12px}
+.empty{color:var(--mute);text-align:center;padding:60px 0}
+.setup{max-width:480px;margin:60px auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.setup input{width:100%;padding:10px;margin:10px 0;background:var(--bg);border:1px solid var(--line);border-radius:9px;color:var(--text);font:inherit}
+.setup button{background:var(--acc);color:#fff;border:0;border-radius:9px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+
+/* ---- Watch modal ---- */
+#watch{position:fixed;inset:0;z-index:20;background:var(--bg);overflow-y:auto;display:none}
+#watch.open{display:block}
+.wtop{max-width:1100px;margin:0 auto;padding:12px 16px}
+.back{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:99px;padding:7px 16px;cursor:pointer;font:inherit}
+.wbody{max-width:1100px;margin:0 auto;padding:0 16px 50px}
+.info h2{margin:18px 0 4px;font-size:24px}
+.info .meta{color:var(--mute);font-size:13px}
+.info p{color:#cfc9e6;max-width:70ch}
+
+/* ---- Custom player ---- */
+.player{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:16/9;user-select:none}
+.player:fullscreen{border-radius:0;aspect-ratio:auto}
+.player video{width:100%;height:100%;display:block;background:#000}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;
+  background:linear-gradient(transparent 55%,rgba(0,0,0,.85));transition:opacity .25s;pointer-events:none}
+.ov .seek,.ov .ctrl{pointer-events:auto}
+.player.idle .ov{opacity:0;cursor:none}
+.ptitle{position:absolute;top:0;left:0;right:0;padding:14px 18px;font-weight:600;background:linear-gradient(rgba(0,0,0,.7),transparent);transition:opacity .25s}
+.player.idle .ptitle{opacity:0}
+.big{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;
+  background:var(--acc);border:0;color:#fff;font-size:28px;cursor:pointer;display:grid;place-items:center;box-shadow:0 0 0 10px rgba(255,93,115,.25);z-index:3}
+.player:not(.paused) .big{display:none}
+.spin{position:absolute;top:50%;left:50%;width:48px;height:48px;margin:-24px;border:4px solid rgba(255,255,255,.25);border-top-color:var(--acc);border-radius:50%;animation:sp 1s linear infinite;display:none}
+.player.loading .spin{display:block}
+@keyframes sp{to{transform:rotate(360deg)}}
+.flash{position:absolute;top:50%;padding:10px 16px;background:rgba(0,0,0,.6);border-radius:99px;font-size:14px;opacity:0;transform:translateY(-50%);pointer-events:none}
+.flash.l{left:12%}.flash.r{right:12%}
+.flash.show{animation:fl .6s}
+@keyframes fl{0%{opacity:1}100%{opacity:0}}
+.seek{position:relative;height:16px;margin:0 14px;cursor:pointer;display:flex;align-items:center;touch-action:none}
+.track{position:relative;width:100%;height:4px;background:rgba(255,255,255,.25);border-radius:4px;transition:height .15s}
+.seek:hover .track{height:7px}
+.prog::after{transition:transform .12s}
+.seek:hover .prog::after{transform:scale(1.25)}
+.buf,.prog{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.buf{background:rgba(255,255,255,.35)}
+.prog{background:var(--acc)}
+.prog::after{content:"";position:absolute;right:-6px;top:50%;width:13px;height:13px;margin-top:-6.5px;border-radius:50%;background:#fff}
+.tip{position:absolute;bottom:20px;transform:translateX(-50%);background:#000c;padding:2px 8px;border-radius:6px;font-size:12px;display:none}
+.seek:hover .tip{display:block}
+.ctrl{display:flex;align-items:center;gap:2px;padding:2px 8px 8px;min-width:0;overflow:hidden}
+.ctrl button{flex:none;background:none;border:0;color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:6px 8px;border-radius:8px;min-width:36px}
+.ctrl button:hover{background:rgba(255,255,255,.15)}
+.ctrl button:focus-visible{outline:2px solid var(--acc)}
+.time{flex:0 1 auto;min-width:0;font-size:13px;margin:0 6px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp{flex:1 1 0;min-width:0}
+.vol{width:0;opacity:0;transition:.2s;accent-color:var(--acc);height:4px}
+.volwrap:hover .vol,.vol:focus{width:76px;opacity:1}
+.volwrap{display:flex;align-items:center}
+.spd{font-size:13px!important;font-weight:600}
+.err{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:20px;background:#000c;color:#ffd7dd}
+.player.error .err{display:grid}
+@media(max-width:700px){.volwrap,#pip{display:none}.ctrl button{font-size:16px;padding:6px;min-width:32px}.time{font-size:12px;margin:0 4px}.ptitle{padding:10px 12px;font-size:14px}.big{width:60px;height:60px;font-size:24px}}
+@media(max-width:420px){#bk,#fw{display:none}}
+body.watching header,body.watching main{visibility:hidden}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="logo">Pmv<i>Tube</i></div>
+    <input id="q" type="search" placeholder="ရုပ်ရှင် ရှာရန်…">
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main id="main"><div class="empty">Loading…</div></main>
+
+<section id="watch" aria-label="Player">
+  <div class="wtop"><button class="back" id="back">← Back</button></div>
+  <div class="wbody">
+    <div class="player paused" id="player" tabindex="0">
+      <video id="v" playsinline preload="metadata"></video>
+      <div class="ptitle" id="ptitle"></div>
+      <div class="flash l" id="fl">⏪ 10s</div><div class="flash r" id="fr">10s ⏩</div>
+      <div class="spin"></div>
+      <button class="big" id="big" aria-label="Play">▶</button>
+      <div class="err">ဒီ video ကို ဖွင့်လို့မရပါ။ Direct link မှန်မမှန် စစ်ပါ။</div>
+      <div class="ov" id="ov">
+        <div class="seek" id="seek"><div class="track"><div class="buf" id="buf"></div><div class="prog" id="prog"></div></div><div class="tip" id="tip"></div></div>
+        <div class="ctrl">
+          <button id="pp" aria-label="Play/Pause">▶</button>
+          <button id="bk" aria-label="Back 10s">⏪</button>
+          <button id="fw" aria-label="Forward 10s">⏩</button>
+          <div class="volwrap"><button id="mute" aria-label="Mute">🔊</button><input class="vol" id="vol" type="range" min="0" max="1" step=".05" value="1"></div>
+          <span class="time" id="time">0:00 / 0:00</span>
+          <span class="sp"></span>
+          <button class="spd" id="spd">1x</button>
+          <button id="pip" aria-label="Picture in picture">⧉</button>
+          <button id="fs" aria-label="Fullscreen">⛶</button>
+        </div>
+      </div>
+    </div>
+    <div class="info">
+      <h2 id="wt"></h2><div class="meta" id="wm"></div><p id="wd"></p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ⬇️ Google Apps Script Web App URL ကို ဒီမှာ ထည့်ပါ */
+const API_URL = 'https://script.google.com/macros/s/AKfycby0Bw2sGZD9jFypfYiXYrQjL2PA7RONdxGF9AxHIxL7WF0gChewSGs4PEbkaj78H6RNlA/exec';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let url = API_URL || localStorage.getItem('apiUrl') || '';
+let movies = [], genre = 'All', current = null;
+
+/* ---------- Data ---------- */
+async function load(){
+  if(!url){
+    $('main').innerHTML = `<div class="setup"><b>Web App URL ထည့်ပါ</b>
+      <input id="su" placeholder="https://script.google.com/macros/s/xxxx/exec">
+      <button id="sb">Save</button></div>`;
+    $('sb').onclick = () => { url = $('su').value.trim(); if(url){ localStorage.setItem('apiUrl', url); load(); } };
+    return;
+  }
+  try{
+    const j = await (await fetch(url+'?action=list')).json();
+    if(!j.ok) throw new Error(j.error);
+    movies = j.data; buildChips(); render();
+  }catch(e){ $('main').innerHTML = '<div class="empty">Load မရပါ — '+esc(e.message)+'</div>'; }
+}
+function buildChips(){
+  const set = new Set(['All']);
+  movies.forEach(m => String(m.genre).split(',').map(s=>s.trim()).filter(Boolean).forEach(g=>set.add(g)));
+  $('chips').innerHTML = [...set].map(g=>`<button class="chip ${g===genre?'on':''}" data-g="${esc(g)}">${esc(g)}</button>`).join('');
+  $('chips').onclick = e => { const b=e.target.closest('.chip'); if(!b) return; genre=b.dataset.g; buildChips(); render(); };
+}
+function render(){
+  const q = $('q').value.toLowerCase().trim();
+  const list = movies.filter(m => (genre==='All' || String(m.genre).split(',').map(s=>s.trim()).includes(genre))
+    && (!q || String(m.title).toLowerCase().includes(q)));
+  $('main').innerHTML = list.length ? '<div class="grid">'+list.map(m=>`
+    <button class="card" data-id="${esc(m.id)}">
+      <div class="poster"><img loading="lazy" src="${esc(m.thumbnail)}" alt=""></div>
+      <b>${esc(m.title)}</b><span>${esc(m.year)}</span>
+    </button>`).join('')+'</div>' : '<div class="empty">ရုပ်ရှင် မတွေ့ပါ</div>';
+}
+$('q').oninput = render;
+$('main').onclick = e => { const c=e.target.closest('.card'); if(c) openMovie(c.dataset.id); };
+
+/* ---------- Player ---------- */
+const P = $('player'), V = $('v');
+const fmt = s => { if(!isFinite(s)) return '0:00'; s=Math.floor(s); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
+  return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0'); };
+let hls = null, idleT;
+
+function loadHls(){ return new Promise((res,rej)=>{ if(window.Hls) return res();
+  const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+
+async function openMovie(id){
+  // data-* attributes are strings; API IDs may be numbers.
+  const m = movies.find(x=>String(x.id)===String(id)); if(!m) return;
+  current = m;
+  $('wt').textContent = m.title; $('ptitle').textContent = m.title;
+  $('wm').textContent = [m.year, m.genre].filter(Boolean).join(' · ');
+  $('wd').textContent = m.description||'';
+  V.poster = m.thumbnail||'';
+  P.classList.remove('error'); P.classList.add('paused');
+  $('watch').classList.add('open'); document.body.style.overflow='hidden'; document.body.classList.add('watching'); $('watch').scrollTop=0;
+  if(hls){ hls.destroy(); hls=null; }
+  const src = m.videoUrl;
+  if(/\.m3u8(\?|$)/i.test(src) && !V.canPlayType('application/vnd.apple.mpegurl')){
+    try{ await loadHls(); hls = new Hls(); hls.loadSource(src); hls.attachMedia(V); }catch(e){ P.classList.add('error'); }
+  } else V.src = src;
+    // view counter (fire-and-forget)
+  fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'view',id:m.id})}).catch(()=>{});
+  P.focus();
+}
+function closeMovie(){
+  V.pause(); V.removeAttribute('src'); V.load(); if(hls){hls.destroy();hls=null;}
+  if(document.fullscreenElement) document.exitFullscreen();
+  $('watch').classList.remove('open'); document.body.style.overflow=''; document.body.classList.remove('watching'); current=null;
+}
+$('back').onclick = closeMovie;
+
+const toggle = () => V.paused ? V.play() : V.pause();
+const skip = d => { V.currentTime = Math.max(0, Math.min(V.duration||0, V.currentTime+d)); };
+function flash(el){ el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); }
+
+V.onplay = V.onpause = () => { const p=V.paused; P.classList.toggle('paused',p); $('pp').textContent=p?'▶':'⏸'; };
+V.onwaiting = () => P.classList.add('loading');
+V.oncanplay = V.onplaying = () => P.classList.remove('loading');
+V.onerror = () => { P.classList.remove('loading'); P.classList.add('error'); };
+let lastTxt='', dragging=false, dragRatio=0, pendingSeek=false, pendT;
+function paintTime(){
+  if(dragging||pendingSeek) return;
+  const d=V.duration||0;
+  $('prog').style.width = d ? (V.currentTime/d*100)+'%' : '0';
+  const t = fmt(V.currentTime)+' / '+fmt(d);
+  if(t!==lastTxt){ $('time').textContent=t; lastTxt=t; }
+}
+V.ontimeupdate = () => {
+  paintTime();
+};
+V.onseeked = () => { pendingSeek=false; clearTimeout(pendT); paintTime(); };
+V.onprogress = () => { if(V.buffered.length && V.duration) $('buf').style.width = V.buffered.end(V.buffered.length-1)/V.duration*100+'%'; };
+
+$('pp').onclick = $('big').onclick = toggle;
+$('bk').onclick = () => { skip(-10); flash($('fl')); };
+$('fw').onclick = () => { skip(10); flash($('fr')); };
+$('vol').oninput = e => { V.volume = e.target.value; V.muted = false; };
+V.onvolumechange = () => $('mute').textContent = (V.muted||V.volume===0) ? '🔇' : '🔊';
+$('mute').onclick = () => V.muted = !V.muted;
+const speeds=[1,1.25,1.5,2,.5,.75]; let si=0;
+$('spd').onclick = () => { si=(si+1)%speeds.length; V.playbackRate=speeds[si]; $('spd').textContent=speeds[si]+'x'; };
+$('pip').onclick = () => document.pictureInPictureElement ? document.exitPictureInPicture() : V.requestPictureInPicture?.().catch(()=>{});
+$('fs').onclick = () => document.fullscreenElement ? document.exitFullscreen() : (P.requestFullscreen?.() || V.webkitEnterFullscreen?.());
+
+// seek bar (mouse + touch): drag နေတုန်း ပုံပဲ update လုပ်ပြီး လွှတ်မှ video ကို seek လုပ်မယ်
+const seek = $('seek');
+const ratio = e => { const r=seek.getBoundingClientRect(); return Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)); };
+function scrubVisual(r){
+  const d=V.duration||0;
+  $('prog').style.width = r*100+'%';
+  $('time').textContent = fmt(r*d)+' / '+fmt(d);
+}
+function commitSeek(){
+  if(!dragging) return;
+  dragging=false;
+  if(V.duration){
+    pendingSeek=true; clearTimeout(pendT); pendT=setTimeout(()=>{pendingSeek=false;paintTime();},3000);
+    V.currentTime = dragRatio*V.duration;
+  }
+}
+seek.onpointerdown = e => { if(!V.duration) return; dragging=true; seek.setPointerCapture(e.pointerId); dragRatio=ratio(e); scrubVisual(dragRatio); };
+seek.onpointermove = e => {
+  const r=ratio(e);
+  $('tip').style.left=r*100+'%'; $('tip').textContent=fmt(r*(V.duration||0));
+  if(dragging){ dragRatio=r; scrubVisual(r); }
+};
+seek.onpointerup = commitSeek;
+seek.onpointercancel = commitSeek;
+seek.onlostpointercapture = commitSeek;
+
+// tap: single = play/pause, double on left/right = skip 10s
+let lastTap=0;
+V.addEventListener('click', e => {
+  const now=Date.now(), r=V.getBoundingClientRect(), x=(e.clientX-r.left)/r.width;
+  if(now-lastTap<300){ clearTimeout(V._t); if(x<.35){skip(-10);flash($('fl'));} else if(x>.65){skip(10);flash($('fr'));} else $('fs').click(); lastTap=0; return; }
+  lastTap=now; V._t=setTimeout(toggle,300);
+});
+
+// auto-hide controls
+function wake(){ P.classList.remove('idle'); clearTimeout(idleT); idleT=setTimeout(()=>{ if(!V.paused) P.classList.add('idle'); },2500); }
+['mousemove','touchstart','keydown','click'].forEach(ev=>P.addEventListener(ev,wake)); wake();
+
+// keyboard
+document.addEventListener('keydown', e => {
+  if(!$('watch').classList.contains('open') || e.target.tagName==='INPUT') return;
+  const k=e.key.toLowerCase();
+  if(k===' '||k==='k'){ e.preventDefault(); toggle(); }
+  else if(k==='arrowright'||k==='l'){ skip(10); flash($('fr')); }
+  else if(k==='arrowleft'||k==='j'){ skip(-10); flash($('fl')); }
+  else if(k==='arrowup'){ e.preventDefault(); V.volume=Math.min(1,V.volume+.1); $('vol').value=V.volume; }
+  else if(k==='arrowdown'){ e.preventDefault(); V.volume=Math.max(0,V.volume-.1); $('vol').value=V.volume; }
+  else if(k==='f') $('fs').click();
+  else if(k==='m') $('mute').click();
+  else if(k==='escape' && !document.fullscreenElement) closeMovie();
+});
+
+load();
+</script>
+<script src="https://pl31519823.profitableratecpmnetwork.com/69/6b/cd/696bcdd457e5bb2a3237f3dfd6583b3d.js"></script>
+</body>
+</html>
